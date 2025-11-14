@@ -29,6 +29,6 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     "**/*.mts"
-  ],
+, "src/pages/page.js", "next.config.mjs", "src/pages/layout.js"  ],
   "exclude": ["node_modules"]
 }
