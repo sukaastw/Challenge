@@ -3,13 +3,13 @@
 import React, { useState, ChangeEvent, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import "../../app/globals.css";
-import { useProducts } from "../../hooks/useProducts";
+import "../../globals.css";
+import { useProducts } from "../../../hooks/useProducts";
 
 export default function ProductForm() {
   const router = useRouter();
   const { categories, isCategoriesLoading, createProduct } = useProducts();
-
+  console.log("Data Kategori di Form:", categories);
   const [formData, setFormData] = useState({
     name: "",
     price: "",
@@ -84,7 +84,7 @@ export default function ProductForm() {
 
       if (result.success) {
         toast.success("Produk berhasil disimpan!");
-        router.push("/adminpages/AdminDashboard");
+        router.push("/adminpages");
       } else {
         toast.error(result.message || "Gagal menyimpan produk.");
       }
@@ -132,8 +132,8 @@ export default function ProductForm() {
           >
             <option value="">-- Pilih Kategori --</option>
             {categories.map((cat) => (
-              <option key={String(cat.category_id)} value={cat.category_name}>
-                {cat.category_name}
+              <option key={String(cat.id)} value={cat.name}>
+                {cat.name}
               </option>
             ))}
           </select>

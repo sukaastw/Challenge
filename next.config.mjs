@@ -1,15 +1,18 @@
-// next.config.mjs (Koreksi)
-
-/** @type {import('next').NextConfig} */ // <--- Baris ini dihapus/dihilangkan
+/** @type {import('next').NextConfig} */
 const nextConfig = {
     images: {
-        // Harus ditambahkan agar gambar dari Google Drive dapat diakses
         remotePatterns: [
-            {
-                protocol: 'https',
-                hostname: 'lh3.googleusercontent.com', // <--- WAJIB DITAMBAHKAN
-            },
+            { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
         ],
+    },
+
+    async rewrites() {
+        return [
+            {
+                source: "/api/gas/:path*",
+                destination: "https://script.google.com/macros/s/AKfycbxCzevWMZBXjVjkx57KtifIiYh3B4rAgIJ7n2W-dZeLWHYfdMkQ4FFKw95sdsMaQD3a/exec",
+            },
+        ];
     },
 };
 

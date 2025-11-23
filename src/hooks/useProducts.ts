@@ -13,12 +13,11 @@ export interface Product {
 }
 
 export interface Category {
-  category_id: string | number;
-  category_name: string;
+  id: string | number;
+  name: string;
 }
 
-const API_URL =
-  "https://script.google.com/macros/s/AKfycbyzcvz_iSzjqAdxrrvS52LAAQkxSP1CED9fWl8UoGoIT5DbXziSoG8GDvXblSPkJK1Z/exec";
+const API_URL = "/api/gas";
 
 export function useProducts() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -28,26 +27,29 @@ export function useProducts() {
   const [isError, setIsError] = useState(false);
 
   // =========================
-  // Fetch Products & Categories
+  // Fetch All Data (Products & Categories)
   // =========================
   useEffect(() => {
-    async function fetchProducts() {
+    async function fetchAllData() {
       try {
         const res = await fetch(API_URL);
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
         const data = await res.json();
 
         const prod: Product[] = Array.isArray(data.products) ? data.products : [];
+        setProducts(prod);
+
         const cats: Category[] = Array.isArray(data.categories)
           ? data.categories.map((c: any) => ({
-              category_id: c.id || c.category_id,
-              category_name: c.name || c.category_name,
+              id: c.id || c.category_id,
+              name: c.name || c.category_name,
             }))
           : [];
-
-        setProducts(prod);
         setCategories(cats);
+
       } catch (err) {
-        console.error("Error fetching products:", err);
+        console.error("Error fetching data:", err);
         setProducts([]);
         setCategories([]);
         setIsError(true);
@@ -57,7 +59,7 @@ export function useProducts() {
       }
     }
 
-    fetchProducts();
+    fetchAllData();
   }, []);
 
   // =========================
@@ -78,6 +80,8 @@ export function useProducts() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "create", target: "product", data }),
       });
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
       const result = await res.json();
 
       if (result.success) {
@@ -92,7 +96,7 @@ export function useProducts() {
   }, []);
 
   // =========================
-  // Update Product
+  // Update Product (termasuk gambar baru)
   // =========================
   const updateProduct = useCallback(async (id: string | number, data: Partial<Product>) => {
     try {
@@ -101,14 +105,17 @@ export function useProducts() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "update", target: "product", data: { ...data, id } }),
       });
-
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
 
       const result = await res.json();
 
       if (result.success) {
         setProducts((prev) =>
-          prev.map((p) => (String(p.id) === String(id) ? { ...p, ...data } : p))
+          prev.map((p) =>
+            String(p.id) === String(id)
+              ? { ...p, ...data, fileId: result.fileId || p.fileId }
+              : p
+          )
         );
       }
 
@@ -130,7 +137,6 @@ export function useProducts() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "delete", target: "product", data: { id } }),
         });
-
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
 
         const result = await res.json();

@@ -55,7 +55,7 @@ export default function AdminDashboard() {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-black">Manajemen Produk</h1>
           <Link
-            href="/adminpages/ProductForm"
+            href="/adminpages/addproduct"
             className="px-5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
           >
             Tambah Produk
