@@ -1,0 +1,177 @@
+// =================== CONFIGURATION ===================
+const FOLDER_DRIVE_ID = ""; // 💡 ganti dengan folder Drive Anda
+
+// =================== SHEET UTILITIES ===================
+function getSheet(sheetName, headers) {
+  const ss = SpreadsheetApp.getActive();
+  let sheet = ss.getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+    if (headers && headers.length > 0) sheet.appendRow(headers);
+  }
+  return sheet;
+}
+
+function getProductSheet() {
+  return getSheet("Sheet1", ["id", "name", "category", "price", "stock", "description", "fileId"]);
+}
+
+function getCategorySheet() {
+  return getSheet("Categories", ["id", "name"]);
+}
+
+function getAllData(sheet) {
+  const values = sheet.getDataRange().getValues();
+  if (values.length <= 1) return { headers: [], rows: [] };
+  const headers = values[0].map(h => String(h).trim());
+  const rows = values.slice(1);
+  return { headers, rows };
+}
+
+function getMaxId(rows) {
+  const ids = rows.map(r => Number(r[0])).filter(v => !isNaN(v));
+  return ids.length ? Math.max(...ids) : 0;
+}
+
+// =================== JSON RESPONSE ===================
+function sendJSON(data) {
+  return ContentService
+         .createTextOutput(JSON.stringify(data))
+         .setMimeType(ContentService.MimeType.JSON);
+}
+
+// =================== GET DATA ===================
+function getCategoryData() {
+  const { rows } = getAllData(getCategorySheet());
+  return rows.filter(r => r[0] && r[1])
+             .map(r => ({ id: String(r[0]), name: String(r[1]) }));
+}
+
+function getProductData() {
+  const { headers, rows } = getAllData(getProductSheet());
+  return rows.map(row => {
+    const obj = {};
+    headers.forEach((h, i) => {
+      if (h === "price" || h === "stock") obj[h] = Number(row[i]) || 0;
+      else obj[h] = row[i];
+    });
+    return obj;
+  });
+}
+
+// =================== DO GET ===================
+function doGet(e) {
+  try {
+    const action = e?.parameter?.action;
+    if (action === "categories") return sendJSON(getCategoryData());
+    return sendJSON({ products: getProductData(), categories: getCategoryData() });
+  } catch (err) {
+    return sendJSON({ success:false, error: "GET Error: "+String(err) });
+  }
+}
+
+// =================== CATEGORY CRUD ===================
+function handleCategoryCrud(action, data) {
+  const sheet = getCategorySheet();
+  const { rows } = getAllData(sheet);
+
+  if (action === "create") {
+    if (!data?.name) return sendJSON({ success:false, message:"name required" });
+    const newId = getMaxId(rows)+1;
+    sheet.appendRow([newId, data.name]);
+    return sendJSON({ success:true, id:newId, name:data.name });
+  }
+
+  const id = data?.id;
+  const index = rows.findIndex(r=>Number(r[0])===Number(id));
+  if (index === -1) return sendJSON({ success:false, message:"category not found" });
+  const rowIndex = index + 2;
+
+  if (action === "update") {
+    if (!data?.name) return sendJSON({ success:false, message:"name required" });
+    sheet.getRange(rowIndex,2).setValue(data.name);
+    return sendJSON({ success:true });
+  }
+
+  if (action === "delete") {
+    sheet.deleteRow(rowIndex);
+    return sendJSON({ success:true });
+  }
+
+  return sendJSON({ success:false, message:"Unknown category action" });
+}
+
+// =================== PRODUCT CRUD ===================
+function handleProductCrud(action, data) {
+  const sheet = getProductSheet();
+  const { headers, rows } = getAllData(sheet);
+
+  if (action === "create") {
+    if (!data?.name) return sendJSON({ success:false, message:"name required" });
+    let fileId = "";
+    if (data.imgBase64) {
+      try {
+        const raw = data.imgBase64.split(",")[1];
+        const type = (data.imgBase64.match(/data:(.*);base64,/)||[])[1] || "image/jpeg";
+        const blob = Utilities.newBlob(Utilities.base64Decode(raw), type, data.name);
+        fileId = DriveApp.getFolderById(FOLDER_DRIVE_ID).createFile(blob).getId();
+      } catch(err){ Logger.log("Image upload error: "+err); }
+    }
+    const newId = getMaxId(rows)+1;
+    const newRow = headers.map(h=>{
+      switch(h){
+        case "id": return newId;
+        case "name": return data.name;
+        case "category": return data.category||"";
+        case "price": return Number(data.price)||0;
+        case "stock": return Number(data.stock)||0;
+        case "description": return data.description||"";
+        case "fileId": return fileId;
+        default: return "";
+      }
+    });
+    sheet.appendRow(newRow);
+    return sendJSON({ success:true, id:newId, fileId });
+  }
+
+  const id = data?.id;
+  if (!id) return sendJSON({ success:false, message:"id required" });
+  const index = rows.findIndex(r=>Number(r[0])===Number(id));
+  if (index === -1) return sendJSON({ success:false, message:"Product not found" });
+  const rowIndex = index + 2;
+
+  if (action === "update") {
+    headers.forEach((h,i)=>{
+      if(h!=="id" && data[h]!==undefined){
+        let val = (h==="price"||h==="stock")?Number(data[h])||0:data[h];
+        sheet.getRange(rowIndex,i+1).setValue(val);
+      }
+    });
+    return sendJSON({ success:true });
+  }
+
+  if (action === "delete") {
+    sheet.deleteRow(rowIndex);
+    return sendJSON({ success:true });
+  }
+
+  return sendJSON({ success:false, message:"Unknown product action" });
+}
+
+// =================== DO POST ===================
+function doPost(e){
+  try {
+    if (!e?.postData?.contents) return sendJSON({ success:false, message:"No POST data" });
+    const body = JSON.parse(e.postData.contents);
+    const action = body.action;
+    const target = body.target || "product";
+    if (!action) return sendJSON({ success:false, message:"Action required" });
+
+    if (target==="category") return handleCategoryCrud(action, body.data);
+    if (target==="product") return handleProductCrud(action, body.data);
+    return sendJSON({ success:false, message:"Unknown target" });
+  } catch(err){
+    Logger.log("POST Error: "+err);
+    return sendJSON({ success:false, error:String(err) });
+  }
+}
