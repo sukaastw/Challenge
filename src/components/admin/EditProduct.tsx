@@ -133,8 +133,8 @@ export default function EditProduct({ productId }: EditProductProps) {
       onSubmit={handleSubmit}
       className="max-w-md mx-auto bg-white shadow-md rounded-2xl p-6 space-y-4 text-gray-500"
     >
-      <h2 className="text-xl font-semibold text-gray-700 mb-4 border-b pb-2">
-        Edit Produk: {productId}
+      <h2 className="text-xl font-semibold text-gray-700 mb-4 border-b pb-2 text-center">
+        Edit Produk
       </h2>
 
       <div className="flex flex-col">
